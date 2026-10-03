@@ -1,0 +1,210 @@
+{
+  "$schema": "https://raw.githubusercontent.com/username/repository/main/schema.json",
+  "id": "llm-interpretability-pipeline",
+  "title": "LLM Mechanistic Interpretability & Neural Steering Architecture",
+  "subtitle": "PyTorch forward/backward hook inspection, Logit Lens decoding, CKA layer redundancy, and test-time activation steering on Llama 3.1 8B",
+  "theme": "slate",
+  "flowDirection": "LR",
+  "groups": [
+    {
+      "id": "grp-input",
+      "label": "Input & Tokenization",
+      "style": "subtle"
+    },
+    {
+      "id": "grp-transformer",
+      "label": "Transformer Residual Stream (32 Layers)",
+      "style": "subtle"
+    },
+    {
+      "id": "grp-diagnostic",
+      "label": "Diagnostic Hook Engine",
+      "style": "subtle"
+    },
+    {
+      "id": "grp-steering",
+      "label": "Steering & Attribution Outputs",
+      "style": "subtle"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node-prompt",
+      "label": "Input Prompts\n(Contrastive Pairs)",
+      "group": "grp-input",
+      "kind": "interface",
+      "x": 40,
+      "y": 140,
+      "width": 160,
+      "height": 70
+    },
+    {
+      "id": "node-tok",
+      "label": "AutoTokenizer\n(Vocab Size: 128k)",
+      "group": "grp-input",
+      "kind": "component",
+      "x": 240,
+      "y": 140,
+      "width": 160,
+      "height": 70
+    },
+    {
+      "id": "node-embed",
+      "label": "Token Embeddings\nW_E (dim: 4096)",
+      "group": "grp-transformer",
+      "kind": "component",
+      "x": 450,
+      "y": 140,
+      "width": 160,
+      "height": 70
+    },
+    {
+      "id": "node-layers",
+      "label": "Transformer Blocks\nLayers 0..31 (MHA + MLP)",
+      "group": "grp-transformer",
+      "kind": "component",
+      "x": 670,
+      "y": 140,
+      "width": 180,
+      "height": 70
+    },
+    {
+      "id": "node-rmsnorm",
+      "label": "Final RMSNorm &\nLM Head (W_U)",
+      "group": "grp-transformer",
+      "kind": "component",
+      "x": 910,
+      "y": 140,
+      "width": 170,
+      "height": 70
+    },
+    {
+      "id": "node-hooks",
+      "label": "PyTorch Forward Hooks\n(Memory-Safe Handles)",
+      "group": "grp-diagnostic",
+      "kind": "component",
+      "x": 670,
+      "y": 280,
+      "width": 180,
+      "height": 70
+    },
+    {
+      "id": "node-logitlens",
+      "label": "Logit Lens Unembedder\nIntermediate Vocab Probs",
+      "group": "grp-diagnostic",
+      "kind": "component",
+      "x": 910,
+      "y": 280,
+      "width": 180,
+      "height": 70
+    },
+    {
+      "id": "node-cka",
+      "label": "CKA Similarity Engine\nLayer Redundancy 32x32",
+      "group": "grp-diagnostic",
+      "kind": "component",
+      "x": 450,
+      "y": 280,
+      "width": 170,
+      "height": 70
+    },
+    {
+      "id": "node-outliers",
+      "label": "Outlier Feature Scanner\n(Dettmers LLM.int8 Metric)",
+      "group": "grp-diagnostic",
+      "kind": "component",
+      "x": 670,
+      "y": 420,
+      "width": 180,
+      "height": 70
+    },
+    {
+      "id": "node-steering",
+      "label": "Activation Steering\n(Positive - Negative CAA)",
+      "group": "grp-steering",
+      "kind": "component",
+      "x": 1150,
+      "y": 140,
+      "width": 180,
+      "height": 70
+    },
+    {
+      "id": "node-dla",
+      "label": "Direct Logit Attribution\nPer-Head Logit Waterfall",
+      "group": "grp-steering",
+      "kind": "component",
+      "x": 1150,
+      "y": 280,
+      "width": 180,
+      "height": 70
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "node-prompt",
+      "to": "node-tok",
+      "label": "raw text"
+    },
+    {
+      "id": "e2",
+      "from": "node-tok",
+      "to": "node-embed",
+      "label": "input_ids"
+    },
+    {
+      "id": "e3",
+      "from": "node-embed",
+      "to": "node-layers",
+      "label": "residual stream x_0"
+    },
+    {
+      "id": "e4",
+      "from": "node-layers",
+      "to": "node-rmsnorm",
+      "label": "final hidden x_31"
+    },
+    {
+      "id": "e5",
+      "from": "node-layers",
+      "to": "node-hooks",
+      "label": "register_forward_hook"
+    },
+    {
+      "id": "e6",
+      "from": "node-hooks",
+      "to": "node-logitlens",
+      "label": "hidden states x_l"
+    },
+    {
+      "id": "e7",
+      "from": "node-hooks",
+      "to": "node-cka",
+      "label": "Gram matrices"
+    },
+    {
+      "id": "e8",
+      "from": "node-hooks",
+      "to": "node-outliers",
+      "label": "activations > 6 std"
+    },
+    {
+      "id": "e9",
+      "from": "node-hooks",
+      "to": "node-steering",
+      "label": "contrastive direction v_l"
+    },
+    {
+      "id": "e10",
+      "from": "node-steering",
+      "to": "node-layers",
+      "label": "x'_l = x_l + alpha * v_l"
+    },
+    {
+      "id": "e11",
+      "from": "node-logitlens",
+      "to": "node-dla",
+      "label": "attribution projection"
+    }
+  ]
+}

@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "LLM Mechanistic Interpretability & Neural Steering Pipeline",
+    "quality_profile": "showcase",
+    "viewBox": [1160, 680],
+    "views": [
+      {
+        "id": "diagnostic-view",
+        "label": "Hook diagnostics path",
+        "focus": ["layers", "hooks", "logitlens", "cka"],
+        "note": "PyTorch forward hooks tap into residual stream hidden states to feed the Logit Lens and CKA engines."
+      },
+      {
+        "id": "steering-view",
+        "label": "Runtime steering path",
+        "focus": ["prompt", "layers", "steering", "output"],
+        "note": "Contrastive steering vectors are injected directly into targeted transformer layers at inference time."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "prompt",
+      "type": "external",
+      "label": "Input Prompts",
+      "sublabel": "Tokenized Context",
+      "pos": [36, 260],
+      "size": [140, 68]
+    },
+    {
+      "id": "embeddings",
+      "type": "backend",
+      "label": "Token Embedding",
+      "sublabel": "dim: 4096 / vocab: 128k",
+      "pos": [250, 260],
+      "size": [144, 68]
+    },
+    {
+      "id": "layers",
+      "type": "backend",
+      "label": "Transformer Blocks",
+      "sublabel": "32 Layers (MHA + MLP)",
+      "pos": [470, 260],
+      "size": [160, 68]
+    },
+    {
+      "id": "rmsnorm",
+      "type": "backend",
+      "label": "RMSNorm & LM Head",
+      "sublabel": "Unembedding Matrix W_U",
+      "pos": [710, 260],
+      "size": [154, 68]
+    },
+    {
+      "id": "output",
+      "type": "external",
+      "label": "Next-Token Output",
+      "sublabel": "Steered Probability",
+      "pos": [940, 260],
+      "size": [140, 68]
+    },
+    {
+      "id": "steering",
+      "type": "backend",
+      "label": "Activation Steering",
+      "sublabel": "x'_l = x_l + alpha * v_l",
+      "pos": [470, 100],
+      "size": [160, 68]
+    },
+    {
+      "id": "hooks",
+      "type": "backend",
+      "label": "PyTorch Hook Manager",
+      "sublabel": "Forward / Backward Taps",
+      "pos": [470, 420],
+      "size": [160, 68]
+    },
+    {
+      "id": "logitlens",
+      "type": "backend",
+      "label": "Logit Lens Engine",
+      "sublabel": "Early Prediction Unembed",
+      "pos": [710, 420],
+      "size": [154, 68]
+    },
+    {
+      "id": "cka",
+      "type": "backend",
+      "label": "CKA Similarity",
+      "sublabel": "32x32 Layer Redundancy",
+      "pos": [250, 420],
+      "size": [144, 68]
+    },
+    {
+      "id": "outliers",
+      "type": "backend",
+      "label": "Outlier Detection",
+      "sublabel": "LLM.int8() Feature Spikes",
+      "pos": [470, 560],
+      "size": [160, 68]
+    }
+  ],
+  "boundaries": [
+    {
+      "label": "Llama 3.1 8B Transformer (PyTorch CUDA)",
+      "kind": "region",
+      "wraps": ["embeddings", "layers", "rmsnorm"]
+    },
+    {
+      "label": "Mechanistic Diagnostics & Interpretability Suite",
+      "kind": "region",
+      "wraps": ["hooks", "logitlens", "cka", "outliers"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "c1",
+      "from": "prompt",
+      "to": "embeddings",
+      "label": "input_ids"
+    },
+    {
+      "id": "c2",
+      "from": "embeddings",
+      "to": "layers",
+      "label": "residual x_0"
+    },
+    {
+      "id": "c3",
+      "from": "layers",
+      "to": "rmsnorm",
+      "label": "hidden x_31"
+    },
+    {
+      "id": "c4",
+      "from": "rmsnorm",
+      "to": "output",
+      "label": "logits"
+    },
+    {
+      "id": "c5",
+      "from": "layers",
+      "to": "hooks",
+      "label": "forward hook",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [550, 355]
+    },
+    {
+      "id": "c6",
+      "from": "hooks",
+      "to": "logitlens",
+      "label": "hidden states"
+    },
+    {
+      "id": "c7",
+      "from": "hooks",
+      "to": "cka",
+      "label": "Gram matrices"
+    },
+    {
+      "id": "c8",
+      "from": "hooks",
+      "to": "outliers",
+      "label": "feature norms",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [550, 515]
+    },
+    {
+      "id": "c9",
+      "from": "steering",
+      "to": "layers",
+      "label": "runtime injection",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [550, 195]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "PyTorch Hooks",
+      "items": [
+        "Memory-safe forward & backward hook handles",
+        "Layer runtime micro-benchmarking with CUDA events"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Logit Lens & DLA",
+      "items": [
+        "Unembedding intermediate hidden states to vocabulary",
+        "Direct Logit Attribution per attention head & MLP"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Neural Steering",
+      "items": [
+        "Contrastive Activation Addition (CAA) persona vectors",
+        "Real-time behavioral modulation without retraining"
+      ]
+    }
+  ]
+}
